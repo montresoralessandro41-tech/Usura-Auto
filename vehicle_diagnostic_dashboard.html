@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Usura Motore & Veicolo Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #070a12;
+            color: #e2e8f0;
+        }
+
+        .font-hud {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Glassmorphism Styling */
+        .hud-card {
+            background: rgba(13, 20, 36, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+        }
+
+        .hud-card:hover {
+            border-color: rgba(0, 240, 255, 0.35);
+        }
+
+        .hud-input {
+            background: #101828;
+            border: 1px solid #1e293b;
+            color: #f1f5f9;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .hud-input:focus {
+            outline: none;
+            border-color: #00f0ff;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+        }
+
+        .hud-checkbox {
+            accent-color: #ff0055;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #080c18;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .hud-card {
+                background: #ffffff !important;
+                border: 1px solid #94a3b8 !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+            }
+            .hud-input {
+                background: #f8fafc !important;
+                color: #000000 !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            canvas {
+                border: 1px solid #64748b;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <header class="border-b border-cyan-500/20 bg-slate-950/90 sticky top-0 z-50 backdrop-blur-md no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+                    <i class="fa-solid fa-car-burst text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-hud font-extrabold text-xl tracking-wider text-slate-100 flex items-center gap-2">
+                        MONITOR USURA PRO <span class="text-[10px] tracking-normal px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">GLOBAL 3.0</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Diagnostica Integrata, Assetto, Pneumatici & Predittore Manutenzioni</p>
+                </div>
+            </div>
+
+            <!-- Profile & Action Bar -->
+            <div class="flex items-center gap-3">
+                <select id="savedProfilesSelect" onchange="loadProfile()" class="hud-input text-xs sm:text-sm py-1.5 w-44 sm:w-56">
+                    <option value="">-- Veicoli Salvati --</option>
+                </select>
+                <button onclick="saveProfile()" class="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 shadow-lg shadow-cyan-600/30">
+                    <i class="fa-solid fa-floppy-disk"></i> <span class="hidden sm:inline">Salva Profilo</span>
+                </button>
+                <button onclick="window.print()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                    <i class="fa-solid fa-print"></i> <span class="hidden sm:inline">Stampa Report</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Side: Configurator Controls -->
+        <div class="lg:col-span-5 space-y-5">
+
+            <!-- Tab Navigation Buttons -->
+            <div class="flex gap-1 p-1 bg-slate-900/90 rounded-xl border border-cyan-500/20 text-xs font-semibold overflow-x-auto no-print">
+                <button onclick="switchTab('vehicle')" id="tabBtn-vehicle" class="flex-1 py-2 px-2.5 rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-car"></i> Veicolo
+                </button>
+                <button onclick="switchTab('engine')" id="tabBtn-engine" class="flex-1 py-2 px-2.5 rounded-lg transition text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-gears"></i> Motore
+                </button>
+                <button onclick="switchTab('brakes')" id="tabBtn-brakes" class="flex-1 py-2 px-2.5 rounded-lg transition text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-circle-dot"></i> Freni
+                </button>
+                <button onclick="switchTab('suspension')" id="tabBtn-suspension" class="flex-1 py-2 px-2.5 rounded-lg transition text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-arrows-up-down"></i> Assetto
+                </button>
+                <button onclick="switchTab('tires')" id="tabBtn-tires" class="flex-1 py-2 px-2.5 rounded-lg transition text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-compact-disc"></i> Gomme
+                </button>
+            </div>
+
+            <!-- Tab 1: Vehicle Profile & Database -->
+            <div id="tab-vehicle" class="hud-card p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-id-card"></i> PROFILO VEICOLO & MARCA
+                    </h2>
+                    <span class="text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded border border-slate-700 font-mono">Database 1980-2026</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Gruppo Automobilistico</label>
+                        <select id="groupSelect" onchange="onGroupChange()" class="hud-input text-sm">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Marca</label>
+                        <select id="brandSelect" onchange="onBrandChange()" class="hud-input text-sm">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Modello</label>
+                        <select id="modelSelect" onchange="onModelChange()" class="hud-input text-sm">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Custom Vehicle Name Overrider -->
+                    <div id="customModelBox" class="sm:col-span-2 hidden">
+                        <label class="block text-xs font-semibold text-amber-400 mb-1">Nome Veicolo Personalizzato</label>
+                        <input type="text" id="customCarInput" placeholder="Es. Lancia Thema 8.32 / Custom Build" oninput="updateDiagnostics()" class="hud-input text-sm font-semibold border-amber-500/50">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Chilometraggio Totale del Veicolo (km)</label>
+                        <input type="number" id="currentKmInput" value="125000" min="0" step="1000" oninput="updateDiagnostics()" class="hud-input text-sm font-mono text-cyan-300 font-bold">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Engine & Maintenance -->
+            <div id="tab-engine" class="hud-card p-5 space-y-4 hidden">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-engine"></i> PROPULSORE & LUBRIFICAZIONE
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Alimentazione</label>
+                        <select id="fuelSelect" onchange="onEngineTypeChange()" class="hud-input text-sm">
+                            <option value="Benzina">Benzina</option>
+                            <option value="Diesel">Diesel</option>
+                            <option value="GPL_Metano">GPL / Metano</option>
+                            <option value="Full_Hybrid">Full Hybrid (HEV / PHEV)</option>
+                            <option value="Elettrico">Elettrico (BEV 100%)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Aspirazione</label>
+                        <select id="inductionSelect" onchange="onEngineTypeChange()" class="hud-input text-sm">
+                            <option value="Aspirato">Aspirato</option>
+                            <option value="Turbo">Turbo / Volumetrico</option>
+                            <option value="TwinTurbo">Bi-Turbo / TwinPower</option>
+                            <option value="Elettrico">Nessuno (Pure EV)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Intervallo Tagliando (km)</label>
+                        <input type="number" id="serviceIntervalKm" value="15000" step="1000" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Km da ultimo Tagliando</label>
+                        <input type="number" id="kmSinceOilChange" value="11000" step="500" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+                </div>
+
+                <!-- Never Serviced Toggles for Engine -->
+                <div class="p-3 bg-red-950/20 border border-red-500/30 rounded-xl space-y-2 mt-2">
+                    <span class="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> OMISSIONI TAGLIANDO & DISTRIBUZIONE
+                    </span>
+                    <div class="flex items-center justify-between">
+                        <label for="neverOilChange" class="text-xs text-slate-300 cursor-pointer">MAI effettuato cambio olio / tagliando</label>
+                        <input type="checkbox" id="neverOilChange" onchange="updateDiagnostics()" class="hud-checkbox">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label for="neverTimingBelt" class="text-xs text-slate-300 cursor-pointer">MAI sostituita Cinghia / Catena di Distribuzione</label>
+                        <input type="checkbox" id="neverTimingBelt" onchange="updateDiagnostics()" class="hud-checkbox">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Brake System -->
+            <div id="tab-brakes" class="hud-card p-5 space-y-4 hidden">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch"></i> IMPIANTO FRENANTE
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Architettura Freni</label>
+                        <select id="brakeTypeSelect" onchange="updateDiagnostics()" class="hud-input text-sm">
+                            <option value="Acciaio_Standard">Dischi in Acciaio Standard</option>
+                            <option value="Autoventilati">Dischi Ventilati / Forati High Performance</option>
+                            <option value="Carboceramica">Carboceramici (CCB)</option>
+                            <option value="Dischi_Tamburo">Dischi Anteriore / Tamburo Posteriore</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Km da cambio Pastiglie</label>
+                        <input type="number" id="kmBrakePads" value="28000" step="1000" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Km da cambio Dischi</label>
+                        <input type="number" id="kmBrakeDiscs" value="55000" step="1000" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+                </div>
+
+                <!-- Never Serviced Toggles for Brakes -->
+                <div class="p-3 bg-red-950/20 border border-red-500/30 rounded-xl space-y-2 mt-2">
+                    <span class="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> MANCATA MANUTENZIONE FRENI
+                    </span>
+                    <div class="flex items-center justify-between">
+                        <label for="neverBrakePads" class="text-xs text-slate-300 cursor-pointer">MAI sostituite le pastiglie freni</label>
+                        <input type="checkbox" id="neverBrakePads" onchange="updateDiagnostics()" class="hud-checkbox">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label for="neverBrakeDiscs" class="text-xs text-slate-300 cursor-pointer">MAI sostituiti i dischi freni</label>
+                        <input type="checkbox" id="neverBrakeDiscs" onchange="updateDiagnostics()" class="hud-checkbox">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label for="neverBrakeFluid" class="text-xs text-slate-300 cursor-pointer">MAI sostituito Olio/Liquido Freni (Spurgo)</label>
+                        <input type="checkbox" id="neverBrakeFluid" onchange="updateDiagnostics()" class="hud-checkbox">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Suspension & Chassis -->
+            <div id="tab-suspension" class="hud-card p-5 space-y-4 hidden">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-up-down"></i> ASSETTO, SOSPENSIONI & TELAIO
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Tipologia Sospensioni</label>
+                        <select id="suspensionTypeSelect" onchange="updateDiagnostics()" class="hud-input text-sm">
+                            <option value="Meccaniche_Standard">Standard Meccaniche (Molla e Ammortizzatore)</option>
+                            <option value="Sportive_Rigide">Sportive / Assetto Ribassato</option>
+                            <option value="Elettroniche_Adattative">Adattative Elettroniche / MagneRide</option>
+                            <option value="Pneumatiche_Air">Pneumatiche ad Aria (Air Suspension)</option>
+                            <option value="Balestra">A Balestra (Pick-up / Veicoli Commerciali)</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Km trascorsi dall'ultimo cambio Ammortizzatori</label>
+                        <input type="number" id="kmSuspensions" value="85000" step="2000" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+                </div>
+
+                <!-- Never Serviced Toggles for Suspensions -->
+                <div class="p-3 bg-red-950/20 border border-red-500/30 rounded-xl space-y-2 mt-2">
+                    <span class="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> MANCATA SOSTITUZIONE ASSETTO
+                    </span>
+                    <div class="flex items-center justify-between">
+                        <label for="neverSuspensionChange" class="text-xs text-slate-300 cursor-pointer">MAI sostituiti gli Ammortizzatori / Boccole</label>
+                        <input type="checkbox" id="neverSuspensionChange" onchange="updateDiagnostics()" class="hud-checkbox">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Tires & Tread -->
+            <div id="tab-tires" class="hud-card p-5 space-y-4 hidden">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-compact-disc"></i> PNEUMATICI, BATTISTRADA & DOT
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Tipologia Mescola</label>
+                        <select id="tireTypeSelect" onchange="updateDiagnostics()" class="hud-input text-sm">
+                            <option value="Estivi">Estivi High Performance</option>
+                            <option value="Invernali">Invernali (M+S / 3PMSF)</option>
+                            <option value="AllSeason">Quattro Stagioni (All-Season)</option>
+                            <option value="SemiSlick">Semi-Slick / Trackday</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Misura Gomma</label>
+                        <input type="text" id="tireSizeInput" value="225/45 R17 91W" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Battistrada Residuo (mm)</label>
+                        <input type="number" id="treadDepthInput" value="3.2" min="1.0" max="8.0" step="0.1" oninput="updateDiagnostics()" class="hud-input text-sm font-mono text-cyan-300 font-bold">
+                        <p class="text-[10px] text-slate-400 mt-1">Soglia legale minima: 1.6 mm. Nuovo: ~8.0 mm.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Usura / Geometria</label>
+                        <select id="tireWearPattern" onchange="updateDiagnostics()" class="hud-input text-sm">
+                            <option value="Uniforme">Regolare / Uniforme</option>
+                            <option value="SpallaInterna">Spalla Interna Usurata (Campanatura/Convergenza)</option>
+                            <option value="SpallaEsterna">Spalla Esterna Usurata (Guida/Assetto)</option>
+                            <option value="Centro">Centro Usurato (Eccesso di Pressione)</option>
+                            <option value="Scalettato">Scalettatura (Ammortizzatori Scarichi)</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Codice DOT Fabbricazione (SSAA)</label>
+                        <input type="text" id="tireDotInput" value="1821" maxlength="4" placeholder="Es. 1821 = 18ª sett. 2021" oninput="updateDiagnostics()" class="hud-input text-sm font-mono">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Side: Interactive X-Ray Canvas HUD & Diagnostic Report -->
+        <div class="lg:col-span-7 space-y-5">
+
+            <!-- Canvas Card -->
+            <div class="hud-card p-5 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-crosshairs"></i> DIAGNOSTICA X-RAY 2D INTERATTIVA
+                    </h2>
+                    <span class="text-xs text-emerald-400 flex items-center gap-1.5 font-mono">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> SYSTEM ONLINE
+                    </span>
+                </div>
+
+                <!-- Canvas Visualizer Box -->
+                <div class="relative bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-inner flex justify-center items-center p-2">
+                    <canvas id="xrayCanvas" width="700" height="360" class="w-full max-w-full h-auto cursor-pointer"></canvas>
+                </div>
+
+                <!-- Selected Component Detail Box -->
+                <div id="hotspotInfoBox" class="mt-4 p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div id="hotspotStatusBadge" class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-xl">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <div>
+                            <h4 id="hotspotTitle" class="text-sm font-bold text-slate-100 font-hud">Seleziona un componente</h4>
+                            <p id="hotspotDesc" class="text-xs text-slate-400">Clicca sui punti attivi del telaio per analizzare l'usura.</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div id="hotspotWearValue" class="font-hud font-bold text-xl text-cyan-400">-- %</div>
+                        <div id="hotspotSeverity" class="text-[10px] font-mono text-slate-400">STATO OK</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Health Gauges Grid -->
+            <div class="hud-card p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-hud text-sm font-bold text-cyan-400 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie"></i> INDICI DI SALUTE COMPONENTI
+                    </h2>
+                    <span id="overallVehicleHealth" class="font-hud text-xs px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold">STATO OTTIMALE</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+
+                    <!-- Engine Oil Gauge -->
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-200 font-semibold"><i class="fa-solid fa-oil-can text-amber-400 mr-1.5"></i> Usura Olio Motore</span>
+                            <span id="engineWearVal" class="font-mono text-slate-100 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="engineWearBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="engineWearStatus" class="text-[11px] text-slate-400 mt-1">Calcolo in corso...</p>
+                    </div>
+
+                    <!-- Timing Belt Gauge -->
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-200 font-semibold"><i class="fa-solid fa-ring text-cyan-400 mr-1.5"></i> Cinghia / Distribuzione</span>
+                            <span id="beltWearVal" class="font-mono text-slate-100 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="beltWearBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="beltWearStatus" class="text-[11px] text-slate-400 mt-1">Calcolo in corso...</p>
+                    </div>
+
+                    <!-- DPF / GPF / EV Battery Gauge (Filtered) -->
+                    <div id="filterGaugeCard" class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span id="filterLabel" class="text-slate-200 font-semibold"><i class="fa-solid fa-smog text-purple-400 mr-1.5"></i> Intasamento DPF / FAP</span>
+                            <span id="filterWearVal" class="font-mono text-slate-100 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="filterWearBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="filterWearStatus" class="text-[11px] text-slate-400 mt-1">Calcolo in corso...</p>
+                    </div>
+
+                    <!-- Brakes Wear Gauge -->
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-200 font-semibold"><i class="fa-solid fa-circle-notch text-rose-400 mr-1.5"></i> Usura Pastiglie / Dischi</span>
+                            <span id="brakesWearVal" class="font-mono text-slate-100 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="brakesWearBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="brakesWearStatus" class="text-[11px] text-slate-400 mt-1">Calcolo in corso...</p>
+                    </div>
+
+                    <!-- Suspensions Wear Gauge -->
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-200 font-semibold"><i class="fa-solid fa-arrows-up-down text-yellow-400 mr-1.5"></i> Usura Ammortizzatori</span>
+                            <span id="suspensionWearVal" class="font-mono text-slate-100 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="suspensionWearBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="suspensionWearStatus" class="text-[11px] text-slate-400 mt-1">Calcolo in corso...</p>
+                    </div>
+
+                    <!-- Tires Tread Gauge -->
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-200 font-semibold"><i class="fa-solid fa-compact-disc text-blue-400 mr-1.5"></i> Usura Battistrada Gomme</span>
+                            <span id="tiresWearVal" class="font-mono text-slate-100 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                            <div id="tiresWearBar" class="h-full bg-emerald-500 transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="tiresWearStatus" class="text-[11px] text-slate-400 mt-1">Calcolo in corso...</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Recommendations / Critical Alerts Panel -->
+            <div class="hud-card p-5">
+                <h3 class="font-hud text-xs font-bold text-slate-200 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-bell text-amber-400"></i> MANUTENZIONI CONSIGLIATE & AVVISI TECNICI
+                </h3>
+                <ul id="recommendationsList" class="space-y-2 text-xs">
+                    <li class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-emerald-400"></i> Nessuna anomalia grave rilevata.
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        /* Comprehensive Historical & Modern Vehicle Database */
+        const CAR_DATABASE = {
+            "Stellantis": {
+                name: "Gruppo Stellantis / Fiat / Opel / Alfa / Lancia",
+                brands: {
+                    "Fiat": [
+                        { model: "Panda 1a Serie (141 - Storica)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Panda 2a Serie (169 - 2003-2012)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Panda 3a Serie (312 - Hybrid/Diesel)", fuel: "Full_Hybrid", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Punto I Serie (176 - 1993)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Punto II Serie (188 - 1999)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Grande Punto / Punto Evo (199)", fuel: "Diesel", induction: "Turbo", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "500 (2007+ / Hybrid)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "500e (Elettrica 2020+)", fuel: "Elettrico", induction: "Elettrico", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "500L / 500X", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Uno (146 Storica)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Seicento / Cinquecento", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Bravo / Brava / Stilo", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Tipo I Serie (160) & II Serie (356)", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Freemont / Doblò", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" }
+                    ],
+                    "Opel": [
+                        { model: "Corsa (B / C / D / E - Ante 2019)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Corsa F (Modern 2019+)", fuel: "Full_Hybrid", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Astra (F / G / H / J / K)", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Astra L (Attuale)", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "Vectra (A / B / C)", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Zafira (A / B / C Tourer)", fuel: "GPL_Metano", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Insignia (A / B)", fuel: "Diesel", induction: "TwinTurbo", brake: "Autoventilati", suspension: "Elettroniche_Adattative" },
+                        { model: "Mokka / Meriva / Adam / Agila", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" }
+                    ],
+                    "Alfa_Romeo": [
+                        { model: "147 / 156", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Sportive_Rigide" },
+                        { model: "159 / Brera", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Sportive_Rigide" },
+                        { model: "MiTo / Giulietta", fuel: "Benzina", induction: "Turbo", brake: "Autoventilati", suspension: "Sportive_Rigide" },
+                        { model: "Giulia / Stelvio", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Elettroniche_Adattative" },
+                        { model: "Tonale / Junior", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" }
+                    ],
+                    "Lancia": [
+                        { model: "Ypsilon (1996 - 2023)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Delta III (2008-2014)", fuel: "Diesel", induction: "TwinTurbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "Thesis / Musa / Lybra", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" }
+                    ],
+                    "Peugeot_Citroen_Jeep": [
+                        { model: "Peugeot 206 / 207 / 208", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Peugeot 307 / 308 / 3008 / 5008", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "Citroën C3 / C4 / Berlingo", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Jeep Renegade / Compass / Wrangler", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" }
+                    ]
+                }
+            },
+            "VW_Group": {
+                name: "Gruppo Volkswagen (VW, Audi, Porsche, Skoda, SEAT)",
+                brands: {
+                    "Volkswagen": [
+                        { model: "Golf 4 / 5 / 6 / 7", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Golf 8", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "Polo / Passat B5/B6/B7", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Tiguan / T-Roc", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "ID.3 / ID.4 (EV)", fuel: "Elettrico", induction: "Elettrico", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" }
+                    ],
+                    "Audi": [
+                        { model: "A3 / A4 / A6 (Storici & Moderni)", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Sportive_Rigide" },
+                        { model: "Q3 / Q5 / Q8 / TT", fuel: "Diesel", induction: "TwinTurbo", brake: "Autoventilati", suspension: "Elettroniche_Adattative" }
+                    ],
+                    "Porsche_Lambo_Seat_Skoda": [
+                        { model: "Porsche 911 / Taycan", fuel: "Benzina", induction: "TwinTurbo", brake: "Carboceramica", suspension: "Elettroniche_Adattative" },
+                        { model: "Skoda Octavia / Fabia", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Seat Leon / Cupra Formentor", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Sportive_Rigide" }
+                    ]
+                }
+            },
+            "Toyota_Lexus": {
+                name: "Gruppo Toyota & Lexus",
+                brands: {
+                    "Toyota": [
+                        { model: "Yaris (Tutti i modelli)", fuel: "Full_Hybrid", induction: "Aspirato", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Corolla / C-HR / RAV4", fuel: "Full_Hybrid", induction: "Aspirato", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "Land Cruiser / Hilux", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Balestra" },
+                        { model: "Supra / bZ4X (EV)", fuel: "Elettrico", induction: "Elettrico", brake: "Autoventilati", suspension: "Sportive_Rigide" }
+                    ]
+                }
+            },
+            "BMW_Mercedes_Ford": {
+                name: "BMW, Mercedes-Benz, Ford, Renault & Altri",
+                brands: {
+                    "BMW": [
+                        { model: "Serie 1 / 3 (E46, E90, F30, G20)", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Sportive_Rigide" },
+                        { model: "Serie 5 / 7 (E60, G30) / X1-X5", fuel: "Diesel", induction: "TwinTurbo", brake: "Autoventilati", suspension: "Elettroniche_Adattative" }
+                    ],
+                    "Mercedes_Benz": [
+                        { model: "Classe A / C / E (W203, W204, W211, Moderni)", fuel: "Diesel", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "GLA / GLC / EQS (EV)", fuel: "Elettrico", induction: "Elettrico", brake: "Autoventilati", suspension: "Pneumatiche_Air" }
+                    ],
+                    "Ford": [
+                        { model: "Fiesta (Tutti i modelli)", fuel: "Benzina", induction: "Aspirato", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Focus (Mk1, Mk2, Mk3, Mk4)", fuel: "Diesel", induction: "Turbo", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" },
+                        { model: "Kuga / Mondeo / Mustang", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" }
+                    ],
+                    "Renault_Volvo_Tesla_Custom": [
+                        { model: "Clio / Megane / Dacia Duster", fuel: "GPL_Metano", induction: "Turbo", brake: "Dischi_Tamburo", suspension: "Meccaniche_Standard" },
+                        { model: "Volvo XC40 / XC90", fuel: "Full_Hybrid", induction: "Turbo", brake: "Autoventilati", suspension: "Meccaniche_Standard" },
+                        { model: "Tesla Model 3 / Model Y", fuel: "Elettrico", induction: "Elettrico", brake: "Autoventilati", suspension: "Sportive_Rigide" },
+                        { model: "Personalizzata / Altro Veicolo", fuel: "Benzina", induction: "Aspirato", brake: "Acciaio_Standard", suspension: "Meccaniche_Standard" }
+                    ]
+                }
+            }
+        };
+
+        // Hotspots for 2D Canvas Visualizer
+        const HOTSPOTS = [
+            { id: 'engine', x: 0.28, y: 0.5, radius: 26, name: 'Propulsore & Olio', desc: 'Vano motore, basamento, lubrificazione e cinghia.' },
+            { id: 'susp_front', x: 0.3, y: 0.25, radius: 20, name: 'Assetto Anteriore', desc: 'Ammortizzatori, molle, trapezi e boccole anteriori.' },
+            { id: 'susp_rear', x: 0.72, y: 0.25, radius: 20, name: 'Assetto Posteriore', desc: 'Sospensioni, ponte rigido/multilink e boccole posteriori.' },
+            { id: 'brakes_front', x: 0.3, y: 0.75, radius: 20, name: 'Freni Anteriore', desc: 'Dischi, pastiglie e pinze anteriori.' },
+            { id: 'brakes_rear', x: 0.72, y: 0.75, radius: 20, name: 'Freni Posteriore', desc: 'Dischi/Tamburi, pastiglie e circuito idraulico.' },
+            { id: 'wheel_fl', x: 0.22, y: 0.18, radius: 18, name: 'Gomma Ant. SX', desc: 'Battistrada e mescola pneumatico anteriore sinistro.' },
+            { id: 'wheel_fr', x: 0.22, y: 0.82, radius: 18, name: 'Gomma Ant. DX', desc: 'Battistrada e mescola pneumatico anteriore destro.' },
+            { id: 'wheel_rl', x: 0.78, y: 0.18, radius: 18, name: 'Gomma Post. SX', desc: 'Battistrada e mescola pneumatico posteriore sinistro.' },
+            { id: 'wheel_rr', x: 0.78, y: 0.82, radius: 18, name: 'Gomma Post. DX', desc: 'Battistrada e mescola pneumatico posteriore destro.' },
+            { id: 'filter_bat', x: 0.52, y: 0.5, radius: 22, name: 'DPF / GPF / Batteria', desc: 'Sistema scarico particolato o pacco batterie HV.' }
+        ];
+
+        let activeHotspotIndex = 0;
+        let canvas, ctx;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            canvas = document.getElementById('xrayCanvas');
+            ctx = canvas.getContext('2d');
+
+            initDatabaseUI();
+            initCanvasEvents();
+            refreshProfilesDropdown();
+            updateDiagnostics();
+        });
+
+        function switchTab(tabId) {
+            ['vehicle', 'engine', 'brakes', 'suspension', 'tires'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                const btn = document.getElementById('tabBtn-' + t);
+                btn.className = "flex-1 py-2 px-2.5 rounded-lg transition text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 whitespace-nowrap";
+            });
+
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('tabBtn-' + tabId);
+            activeBtn.className = "flex-1 py-2 px-2.5 rounded-lg transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center gap-1.5 whitespace-nowrap font-bold";
+        }
+
+        function initDatabaseUI() {
+            const groupSel = document.getElementById('groupSelect');
+            groupSel.innerHTML = '';
+
+            for (let key in CAR_DATABASE) {
+                let opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = CAR_DATABASE[key].name;
+                groupSel.appendChild(opt);
+            }
+            onGroupChange();
+        }
+
+        function onGroupChange() {
+            const groupKey = document.getElementById('groupSelect').value;
+            const brandSel = document.getElementById('brandSelect');
+            brandSel.innerHTML = '';
+
+            const brands = CAR_DATABASE[groupKey].brands;
+            for (let bKey in brands) {
+                let opt = document.createElement('option');
+                opt.value = bKey;
+                opt.textContent = bKey.replace(/_/g, ' ');
+                brandSel.appendChild(opt);
+            }
+            onBrandChange();
+        }
+
+        function onBrandChange() {
+            const groupKey = document.getElementById('groupSelect').value;
+            const brandKey = document.getElementById('brandSelect').value;
+            const modelSel = document.getElementById('modelSelect');
+            modelSel.innerHTML = '';
+
+            const models = CAR_DATABASE[groupKey].brands[brandKey];
+            models.forEach((mObj, idx) => {
+                let opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = mObj.model;
+                modelSel.appendChild(opt);
+            });
+
+            onModelChange();
+        }
+
+        function onModelChange() {
+            const groupKey = document.getElementById('groupSelect').value;
+            const brandKey = document.getElementById('brandSelect').value;
+            const modelIdx = document.getElementById('modelSelect').value;
+            const target = CAR_DATABASE[groupKey].brands[brandKey][modelIdx];
+
+            if (!target) return;
+
+            if (target.model.includes("Personalizzata")) {
+                document.getElementById('customModelBox').classList.remove('hidden');
+            } else {
+                document.getElementById('customModelBox').classList.add('hidden');
+            }
+
+            document.getElementById('fuelSelect').value = target.fuel;
+            document.getElementById('inductionSelect').value = target.induction;
+            document.getElementById('brakeTypeSelect').value = target.brake;
+            document.getElementById('suspensionTypeSelect').value = target.suspension;
+
+            onEngineTypeChange();
+        }
+
+        function onEngineTypeChange() {
+            const fuel = document.getElementById('fuelSelect').value;
+            const induction = document.getElementById('inductionSelect').value;
+            const filterCard = document.getElementById('filterGaugeCard');
+            const filterLabel = document.getElementById('filterLabel');
+
+            if (fuel === 'Diesel') {
+                filterCard.classList.remove('hidden');
+                filterLabel.innerHTML = '<i class="fa-solid fa-smog text-purple-400 mr-1.5"></i> Intasamento DPF / FAP';
+            } else if (fuel === 'Benzina' && (induction === 'Turbo' || induction === 'TwinTurbo')) {
+                filterCard.classList.remove('hidden');
+                filterLabel.innerHTML = '<i class="fa-solid fa-filter text-amber-400 mr-1.5"></i> Intasamento Filtro GPF';
+            } else if (fuel === 'Elettrico') {
+                filterCard.classList.remove('hidden');
+                filterLabel.innerHTML = '<i class="fa-solid fa-car-battery text-cyan-400 mr-1.5"></i> Usura Pacco Batteria (SoH)';
+            } else {
+                filterCard.classList.add('hidden');
+            }
+
+            updateDiagnostics();
+        }
+
+        function updateDiagnostics() {
+            const totalKm = parseFloat(document.getElementById('currentKmInput').value) || 0;
+            const serviceInterval = parseFloat(document.getElementById('serviceIntervalKm').value) || 15000;
+            const kmOil = parseFloat(document.getElementById('kmSinceOilChange').value) || 0;
+            const fuel = document.getElementById('fuelSelect').value;
+
+            // Checkboxes
+            const neverOil = document.getElementById('neverOilChange').checked;
+            const neverBelt = document.getElementById('neverTimingBelt').checked;
+            const neverPads = document.getElementById('neverBrakePads').checked;
+            const neverDiscs = document.getElementById('neverBrakeDiscs').checked;
+            const neverFluid = document.getElementById('neverBrakeFluid').checked;
+            const neverSusp = document.getElementById('neverSuspensionChange').checked;
+
+            // 1. Engine Oil Wear
+            let oilWear = 0;
+            if (neverOil) {
+                oilWear = Math.min(100, Math.round((totalKm / (serviceInterval * 2.5)) * 100));
+            } else {
+                oilWear = Math.min(100, Math.round((kmOil / serviceInterval) * 100));
+            }
+            if (fuel === 'Elettrico') oilWear = 0;
+
+            updateGauge('engineWearVal', 'engineWearBar', 'engineWearStatus', oilWear, [
+                { limit: 50, text: 'Olio lubrificante e filtro in buono stato.', color: 'bg-emerald-500' },
+                { limit: 85, text: 'Prossimo al limite. Cambio olio raccomandato.', color: 'bg-amber-500' },
+                { limit: 100, text: 'CRITICO: Olio esausto o non sostituito!', color: 'bg-rose-600' }
+            ]);
+
+            // 2. Timing Belt / Chain
+            let beltWear = 0;
+            if (neverBelt) {
+                beltWear = Math.min(100, Math.round((totalKm / 100000) * 100));
+            } else {
+                beltWear = Math.min(100, Math.round((totalKm % 100000) / 1000));
+            }
+            if (fuel === 'Elettrico') beltWear = 0;
+
+            updateGauge('beltWearVal', 'beltWearBar', 'beltWearStatus', beltWear, [
+                { limit: 50, text: 'Tensione cinghia e pulegge regolari.', color: 'bg-emerald-500' },
+                { limit: 85, text: 'Pianificare controllo cinghia/catena.', color: 'bg-amber-500' },
+                { limit: 100, text: 'PERICOLO: Rischio rottura distribuzione!', color: 'bg-rose-600' }
+            ]);
+
+            // 3. DPF / GPF / EV Battery
+            let filterWear = 20;
+            if (fuel === 'Diesel') {
+                filterWear = Math.min(100, Math.round((kmOil / 12000) * 75));
+            } else if (fuel === 'Elettrico') {
+                filterWear = Math.max(0, Math.min(100, Math.round((totalKm / 300000) * 100)));
+            }
+            updateGauge('filterWearVal', 'filterWearBar', 'filterWearStatus', filterWear, [
+                { limit: 40, text: 'Contropressione scarico / Batteria OK.', color: 'bg-emerald-500' },
+                { limit: 75, text: 'Accumulo particolato moderato.', color: 'bg-amber-500' },
+                { limit: 100, text: 'Filtro o accumulo batteria critico.', color: 'bg-rose-600' }
+            ]);
+
+            // 4. Brakes Wear
+            const kmPads = parseFloat(document.getElementById('kmBrakePads').value) || 0;
+            const brakeType = document.getElementById('brakeTypeSelect').value;
+            let padLimit = brakeType === 'Carboceramica' ? 90000 : 35000;
+
+            let brakeWear = 0;
+            if (neverPads || neverDiscs) {
+                brakeWear = Math.min(100, Math.round((totalKm / padLimit) * 100));
+            } else {
+                brakeWear = Math.min(100, Math.round((kmPads / padLimit) * 100));
+            }
+            if (neverFluid) brakeWear = Math.max(brakeWear, 85);
+
+            updateGauge('brakesWearVal', 'brakesWearBar', 'brakesWearStatus', brakeWear, [
+                { limit: 50, text: 'Spessore materiale di attrito idoneo.', color: 'bg-emerald-500' },
+                { limit: 80, text: 'Pastiglie consumo avanzato.', color: 'bg-amber-500' },
+                { limit: 100, text: 'PERICOLO FRENI: Sostituzione urgente!', color: 'bg-rose-600' }
+            ]);
+
+            // 5. Suspensions Wear
+            const kmSusp = parseFloat(document.getElementById('kmSuspensions').value) || 0;
+            let suspWear = 0;
+            if (neverSusp) {
+                suspWear = Math.min(100, Math.round((totalKm / 90000) * 100));
+            } else {
+                suspWear = Math.min(100, Math.round((kmSusp / 90000) * 100));
+            }
+
+            updateGauge('suspensionWearVal', 'suspensionWearBar', 'suspensionWearStatus', suspWear, [
+                { limit: 50, text: 'Ammortizzatori e idraulica reattivi.', color: 'bg-emerald-500' },
+                { limit: 80, text: 'Smorzamento ridotto, lieve rollio.', color: 'bg-amber-500' },
+                { limit: 100, text: 'Ammortizzatori totalmente scarichi!', color: 'bg-rose-600' }
+            ]);
+
+            // 6. Tires Wear
+            const tread = parseFloat(document.getElementById('treadDepthInput').value) || 3.0;
+            const wearPattern = document.getElementById('tireWearPattern').value;
+            let tireWear = Math.min(100, Math.max(0, Math.round(((8.0 - tread) / 6.4) * 100)));
+
+            let tireText = 'Profondità scanalature idonea.';
+            if (tread <= 1.6) tireText = 'ILLEGALE: Battistrada sotto 1.6mm!';
+            else if (tread < 3.0) tireText = 'Battistrada usurato (<3mm).';
+            if (wearPattern !== 'Uniforme') tireText += ' Anomalia geometria assetto.';
+
+            updateGauge('tiresWearVal', 'tiresWearBar', 'tiresWearStatus', tireWear, [
+                { limit: 50, text: tireText, color: 'bg-emerald-500' },
+                { limit: 80, text: tireText, color: 'bg-amber-500' },
+                { limit: 100, text: tireText, color: 'bg-rose-600' }
+            ]);
+
+            // Overall Vehicle Status Badge
+            const maxWear = Math.max(oilWear, beltWear, brakeWear, suspWear, tireWear);
+            const overallBadge = document.getElementById('overallVehicleHealth');
+
+            if (maxWear >= 90) {
+                overallBadge.className = "font-hud text-xs px-2.5 py-1 rounded-md bg-rose-500/20 text-rose-400 border border-rose-500/40 font-bold";
+                overallBadge.textContent = "ATTENZIONE CRITICA";
+            } else if (maxWear >= 70) {
+                overallBadge.className = "font-hud text-xs px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 font-bold";
+                overallBadge.textContent = "MANUTENZIONE RICHIESTA";
+            } else {
+                overallBadge.className = "font-hud text-xs px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold";
+                overallBadge.textContent = "STATO OTTIMALE";
+            }
+
+            generateAlertsList({
+                oilWear, beltWear, brakeWear, suspWear, tireWear, tread, neverOil, neverBelt, neverPads, neverDiscs, neverFluid, neverSusp, wearPattern
+            });
+
+            drawXrayCanvas();
+            updateHotspotInfoPanel(HOTSPOTS[activeHotspotIndex]);
+        }
+
+        function updateGauge(valId, barId, statusId, value, thresholds) {
+            document.getElementById(valId).textContent = value + '%';
+            const bar = document.getElementById(barId);
+            bar.style.width = value + '%';
+
+            let selected = thresholds[thresholds.length - 1];
+            for (let t of thresholds) {
+                if (value <= t.limit) {
+                    selected = t;
+                    break;
+                }
+            }
+
+            bar.className = 'h-full transition-all duration-500 ' + selected.color;
+            if (statusId) document.getElementById(statusId).textContent = selected.text;
+        }
+
+        function generateAlertsList(data) {
+            const list = document.getElementById('recommendationsList');
+            list.innerHTML = '';
+            const items = [];
+
+            if (data.neverOil || data.oilWear >= 85) {
+                items.push({ icon: 'fa-oil-can', color: 'text-rose-400', text: 'Eseguire cambio olio e filtro immediato per prevenire grippaggio.' });
+            }
+            if (data.neverBelt || data.beltWear >= 85) {
+                items.push({ icon: 'fa-ring', color: 'text-rose-400', text: 'Cinghia/Catena di distribuzione a rischio rottura improvvisa.' });
+            }
+            if (data.neverPads || data.neverDiscs || data.brakeWear >= 80) {
+                items.push({ icon: 'fa-circle-notch', color: 'text-rose-400', text: 'Impianto frenante usurato. Controllare pastiglie e spessore dischi.' });
+            }
+            if (data.neverFluid) {
+                items.push({ icon: 'fa-droplet', color: 'text-amber-400', text: 'Olio freni mai sostituito: rischio vapore e perdita pressione in frenata.' });
+            }
+            if (data.neverSusp || data.suspWear >= 80) {
+                items.push({ icon: 'fa-arrows-up-down', color: 'text-amber-400', text: 'Sospensioni scariche: allungamento dello spazio di arresto in frenata.' });
+            }
+            if (data.tread <= 1.6) {
+                items.push({ icon: 'fa-triangle-exclamation', color: 'text-rose-400', text: 'Pneumatici ILLEGALI (battistrada < 1.6 mm). Sostituire subito.' });
+            }
+            if (data.wearPattern !== 'Uniforme') {
+                items.push({ icon: 'fa-align-center', color: 'text-amber-400', text: 'Anomalia battistrada: eseguire campanatura e convergenza ruote.' });
+            }
+
+            if (items.length === 0) {
+                list.innerHTML = `
+                    <li class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-emerald-400 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i> Tutti i componenti sono entro i parametri di sicurezza.
+                    </li>`;
+            } else {
+                items.forEach(it => {
+                    let li = document.createElement('li');
+                    li.className = 'p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 flex items-center gap-2 font-medium';
+                    li.innerHTML = `<i class="fa-solid ${it.icon} ${it.color}"></i> <span>${it.text}</span>`;
+                    list.appendChild(li);
+                });
+            }
+        }
+
+        function initCanvasEvents() {
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+                HOTSPOTS.forEach((spot, idx) => {
+                    const hX = spot.x * canvas.width;
+                    const hY = spot.y * canvas.height;
+                    if (Math.hypot(mouseX - hX, mouseY - hY) <= spot.radius + 6) {
+                        activeHotspotIndex = idx;
+                        updateHotspotInfoPanel(spot);
+                        drawXrayCanvas();
+                    }
+                });
+            });
+        }
+
+        function drawXrayCanvas() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Technical Grid
+            ctx.strokeStyle = 'rgba(30, 41, 59, 0.5)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < w; x += 25) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            }
+            for (let y = 0; y < h; y += 25) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+
+            // Vehicle Top-View Chassis Blueprint
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+
+            ctx.beginPath();
+            ctx.moveTo(w * 0.15, h * 0.32);
+            ctx.quadraticCurveTo(w * 0.1, h * 0.5, w * 0.15, h * 0.68);
+            ctx.lineTo(w * 0.32, h * 0.75);
+            ctx.lineTo(w * 0.78, h * 0.75);
+            ctx.quadraticCurveTo(w * 0.88, h * 0.62, w * 0.88, h * 0.5);
+            ctx.quadraticCurveTo(w * 0.88, h * 0.38, w * 0.78, h * 0.25);
+            ctx.lineTo(w * 0.32, h * 0.25);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // Render Hotspots
+            HOTSPOTS.forEach((spot, idx) => {
+                const hX = spot.x * w;
+                const hY = spot.y * h;
+                const isSelected = (idx === activeHotspotIndex);
+
+                let color = '#10b981'; // Green
+                let wearVal = getComponentWearValue(spot.id);
+
+                if (wearVal >= 90) color = '#000000'; // Critical/Black
+                else if (wearVal >= 75) color = '#f43f5e'; // Red
+                else if (wearVal >= 45) color = '#f59e0b'; // Yellow
+
+                // Halo glow
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(hX, hY, spot.radius + (isSelected ? 8 : 2), 0, Math.PI * 2);
+                ctx.fillStyle = color === '#000000' ? 'rgba(244, 63, 94, 0.4)' : color;
+                ctx.globalAlpha = isSelected ? 0.35 : 0.15;
+                ctx.fill();
+
+                // Core Dot
+                ctx.beginPath();
+                ctx.arc(hX, hY, isSelected ? 8 : 5, 0, Math.PI * 2);
+                ctx.fillStyle = color === '#000000' ? '#ef4444' : color;
+                ctx.globalAlpha = 1.0;
+                ctx.shadowColor = color === '#000000' ? '#ef4444' : color;
+                ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.restore();
+
+                // Component Tag Label
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px Orbitron, sans-serif';
+                ctx.fillText(spot.name.split(' ')[0], hX - 14, hY - spot.radius - 3);
+            });
+        }
+
+        function getComponentWearValue(id) {
+            if (id === 'engine') return parseFloat(document.getElementById('engineWearVal').textContent) || 0;
+            if (id.includes('brakes')) return parseFloat(document.getElementById('brakesWearVal').textContent) || 0;
+            if (id.includes('susp')) return parseFloat(document.getElementById('suspensionWearVal').textContent) || 0;
+            if (id.includes('wheel')) return parseFloat(document.getElementById('tiresWearVal').textContent) || 0;
+            if (id === 'filter_bat') return parseFloat(document.getElementById('filterWearVal').textContent) || 0;
+            return 0;
+        }
+
+        function updateHotspotInfoPanel(spot) {
+            document.getElementById('hotspotTitle').textContent = spot.name;
+            document.getElementById('hotspotDesc').textContent = spot.desc;
+
+            const val = getComponentWearValue(spot.id);
+            document.getElementById('hotspotWearValue').textContent = val + '%';
+
+            const sev = document.getElementById('hotspotSeverity');
+            if (val >= 85) {
+                sev.textContent = 'ALLERTA CRITICA';
+                sev.className = 'text-[10px] font-mono text-rose-400 font-bold';
+            } else if (val >= 50) {
+                sev.textContent = 'USURA MEDIA';
+                sev.className = 'text-[10px] font-mono text-amber-400 font-bold';
+            } else {
+                sev.textContent = 'STATO OTTIMALE';
+                sev.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+            }
+        }
+
+        function saveProfile() {
+            const group = document.getElementById('groupSelect').value;
+            const brand = document.getElementById('brandSelect').value;
+            const modelIdx = document.getElementById('modelSelect').value;
+            const modelObj = CAR_DATABASE[group].brands[brand][modelIdx];
+
+            let title = brand + ' ' + (modelObj ? modelObj.model : 'Veicolo');
+            if (title.includes("Personalizzata")) {
+                title = document.getElementById('customCarInput').value || "Veicolo Custom";
+            }
+
+            const profile = {
+                id: Date.now(),
+                title: title,
+                km: document.getElementById('currentKmInput').value,
+                fuel: document.getElementById('fuelSelect').value,
+                induction: document.getElementById('inductionSelect').value,
+                brake: document.getElementById('brakeTypeSelect').value,
+                suspension: document.getElementById('suspensionTypeSelect').value,
+                neverOil: document.getElementById('neverOilChange').checked,
+                neverBelt: document.getElementById('neverTimingBelt').checked,
+                neverPads: document.getElementById('neverBrakePads').checked,
+                neverSusp: document.getElementById('neverSuspensionChange').checked,
+                tread: document.getElementById('treadDepthInput').value
+            };
+
+            let list = JSON.parse(localStorage.getItem('saved_car_profiles_v3') || '[]');
+            list.push(profile);
+            localStorage.setItem('saved_car_profiles_v3', JSON.stringify(list));
+
+            refreshProfilesDropdown();
+            alert('Profilo salvato con successo per: ' + title);
+        }
+
+        function refreshProfilesDropdown() {
+            const select = document.getElementById('savedProfilesSelect');
+            select.innerHTML = '<option value="">-- Veicoli Salvati --</option>';
+
+            let list = JSON.parse(localStorage.getItem('saved_car_profiles_v3') || '[]');
+            list.forEach((item, index) => {
+                let opt = document.createElement('option');
+                opt.value = index;
+                opt.textContent = `${item.title} (${item.km} km)`;
+                select.appendChild(opt);
+            });
+        }
+
+        function loadProfile() {
+            const idx = document.getElementById('savedProfilesSelect').value;
+            if (idx === '') return;
+
+            let list = JSON.parse(localStorage.getItem('saved_car_profiles_v3') || '[]');
+            const item = list[idx];
+            if (!item) return;
+
+            document.getElementById('currentKmInput').value = item.km;
+            document.getElementById('fuelSelect').value = item.fuel;
+            document.getElementById('inductionSelect').value = item.induction;
+            document.getElementById('brakeTypeSelect').value = item.brake;
+            document.getElementById('suspensionTypeSelect').value = item.suspension;
+            
+            document.getElementById('neverOilChange').checked = item.neverOil;
+            document.getElementById('neverTimingBelt').checked = item.neverBelt;
+            document.getElementById('neverBrakePads').checked = item.neverPads;
+            document.getElementById('neverSuspensionChange').checked = item.neverSusp;
+            document.getElementById('treadDepthInput').value = item.tread;
+
+            onEngineTypeChange();
+        }
+    </script>
+</body>
+</html>
